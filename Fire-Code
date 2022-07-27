@@ -1,0 +1,142 @@
+#include "DHT.h"
+#define DHTPIN1 2
+#define DHTPIN2 3// Digital pin connected to the DHT sensor
+#define DHTTYPE1 DHT11   // DHT 11
+#define DHTTYPE2 DHT11   // DHT 11
+#include <SoftwareSerial.h>
+DHT dht1(DHTPIN1, DHTTYPE2);
+DHT dht2(DHTPIN2, DHTTYPE2);
+SoftwareSerial mySerial(9, 10);
+int Bz=8;
+int Relaypin1= 6; // Define input pin for relay
+int Relaypin2= 7;
+
+const int gas1_pin=A0;
+int Gas1_reading=0;
+
+const int gas2_pin=A1;
+int Gas2_reading=0;
+
+void setup() {
+  Serial.begin(9600);
+  mySerial.begin(9600);   // Setting the baud rate of GSM Module 
+  delay(100);
+  Serial.println(F("Fire Extinguisher Test Started "));
+  dht1.begin();
+  dht2.begin();
+
+  pinMode(Relaypin1, OUTPUT); // Define the Relaypin as output pin
+  pinMode(Relaypin2, OUTPUT); 
+  pinMode(Bz, OUTPUT); 
+}
+
+void loop() {
+  //Campartment 1
+  delay(2000);
+  float h1 = dht1.readHumidity();
+  float t1 = dht1.readTemperature();
+  float f1 = dht1.readTemperature(true);
+  if (isnan(h1) || isnan(t1) || isnan(f1)) {
+    Serial.println(F("Failed to read from DHT sensor 1!"));
+    return;
+  }
+  float hif1 = dht1.computeHeatIndex(f1, h1);
+  float hic1 = dht1.computeHeatIndex(t1, h1, false);
+  Serial.print("Campartment 1");
+  Serial.print("\n");
+  Serial.print(F(" Humidity: "));
+  Serial.print(h1);
+  Serial.print(F("%  Temperature: "));
+  Serial.print(t1);
+  Serial.print(F("C "));
+  Serial.print("\n");
+  delay(1000);
+
+   Gas1_reading= analogRead (gas1_pin);
+  Serial.print("Gas mesurements: ");
+  Serial.println(Gas1_reading);
+
+//Campartment 2
+   delay(2000);
+  float h2 = dht2.readHumidity();
+  float t2 = dht2.readTemperature();
+  float f2 = dht2.readTemperature(true);
+  if (isnan(h2) || isnan(t2) || isnan(f2)) {
+    Serial.println(F("Failed to read from DHT sensor 2!"));
+    return;
+  }
+  float hif2 = dht2.computeHeatIndex(f2, h2);
+  float hic2 = dht2.computeHeatIndex(t2, h2, false);
+  Serial.print("Campartment 2");
+  Serial.print("\n");
+  Serial.print(F(" Humidity: "));
+  Serial.print(h2);
+  Serial.print(F("%  Temperature: "));
+  Serial.print(t2);
+  Serial.print(F("C "));
+  Serial.print("\n");
+  delay(1000);
+
+   Gas2_reading= analogRead (gas2_pin);
+  Serial.print("Gas mesurements: ");
+  Serial.println(Gas2_reading);
+
+// Relay and GSM operation
+  if (t2 > 35 or Gas2_reading > 400){
+    Serial.print("Water is ON");
+    Serial.print("\n");
+    Serial.print("SMS Sent");
+    SendMessage2();
+    digitalWrite(Relaypin2, LOW);
+    digitalWrite(Bz, HIGH);// Sends high signal 
+    delay(3000); 
+  }
+  else{
+    digitalWrite(Relaypin2, HIGH);
+    digitalWrite(Bz, LOW);
+  }
+  if (t1 > 35 or Gas1_reading > 400){
+    Serial.print("Water is ON");
+    Serial.print("\n");
+    Serial.print("SMS Sent");
+    SendMessage1();
+    digitalWrite(Relaypin1, LOW);
+    digitalWrite(Bz, HIGH);
+    // Sends high signal
+    delay(3000);
+    
+  }
+  else{
+    digitalWrite(Relaypin1, HIGH);
+    digitalWrite(Bz, LOW);
+  }
+}
+
+ void SendMessage1()
+{
+  mySerial.println("AT+CMGF=1");    //Sets the GSM Module in Text Mode
+  delay(1000);  // Delay of 1000 milli seconds or 1 second
+  mySerial.println("AT+CMGS=\"+918310959894\"\r"); // Replace x with mobile number
+  delay(1000);
+    mySerial.println("AT+CMGS=\"+918147812431\"\r"); // Replace x with mobile number
+  delay(1000);
+  mySerial.println("Fire Aleart at Campartment 1");
+  mySerial.println("LOCATION: BLDEA's Engineering College");// The SMS text you want to send
+  delay(100);
+  mySerial.println((char)26);// ASCII code of CTRL+Z
+  delay(1000);
+}
+ void SendMessage2()
+{
+  mySerial.println("AT+CMGF=1");    //Sets the GSM Module in Text Mode
+  delay(1000);  // Delay of 1000 milli seconds or 1 second
+  mySerial.println("AT+CMGS=\"+918310959894\"\r"); // Replace x with mobile number
+  delay(1000);
+  mySerial.println("AT+CMGS=\"+918147812431\"\r"); // Replace x with mobile number
+  delay(1000);
+  mySerial.println("Fire Aleart at Campartment 2");
+  mySerial.println("LOCATION: BLDEA's Engineering College");// The SMS text you want to send
+  delay(100);
+  mySerial.println((char)26);// ASCII code of CTRL+Z
+  delay(1000);
+}
